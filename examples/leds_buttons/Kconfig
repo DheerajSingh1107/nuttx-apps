@@ -1,0 +1,43 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config EXAMPLES_LEDS_BUTTONS
+	tristate "LED Button driver example"
+	default n
+	depends on USERLED
+    depends on INPUT_BUTTONS    
+	---help---
+		Enable the LED driversexample
+
+if EXAMPLES_LEDS_BUTTONS
+
+config EXAMPLES_LEDS_BUTTONS_PROGNAME
+	string "Program name"
+	default "leds_buttons"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config EXAMPLES_LEDS_BUTTONS_PRIORITY
+	int "LED Buttons task priority"
+	default 100
+
+config EXAMPLES_LEDS_BUTTONS_STACKSIZE
+	int "LED Buttons stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+config EXAMPLES_BUTTONS_DEVPATH
+	string "Button device path"
+	default "/dev/buttons"
+
+config EXAMPLES_LEDS_DEVPATH
+	string "LED  device path"
+	default "/dev/userleds"
+
+config EXAMPLES_LEDS_BUTTONS_LEDSET
+	hex "Subset of LEDs Buttons to use"
+	default 0x0f
+
+endif # EXAMPLES_LEDS
