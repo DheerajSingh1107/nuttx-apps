@@ -37,6 +37,9 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include <fcntl.h>
+#include <mqueue.h>
+
 #include <nuttx/input/buttons.h>
 
 #include "myapp_main.h"
@@ -168,7 +171,25 @@ int button_daemon(int argc, char *argv[])
   int i;
 
   UNUSED(i);
+ 
+  /* initalized message queue */
+      mqd_t mq;
+    struct mq_attr attr;
+    int button_state;
 
+    /* Set message queue attributes */
+    attr.mq_flags = 0;
+    attr.mq_maxmsg = MQ_MAX_MSG;
+    attr.mq_msgsize = MQ_MSG_SIZE;
+    attr.mq_curmsgs = 0;
+
+    /* Create or open message queue */
+    mq = mq_open(MQ_NAME, O_CREAT | O_WRONLY, 0644, &attr);
+    if (mq == (mqd_t)-1)
+    {
+        perror("mq_open failed in button_daemon");
+        return NULL;
+    }
   /* Indicate that we are running */
 
   g_button_daemon_started = true;
@@ -348,7 +369,11 @@ int button_daemon(int argc, char *argv[])
 #else
       printf("Sample = %jd\n", (intmax_t)sample);
 #endif
-
+            /* Send state to the queue */
+      if (mq_send(mq, (char *)&sample, MQ_MSG_SIZE, 0) == -1)
+      {
+          perror("mq_send failed");
+      }
       /* Make sure that everything is displayed */
 
       fflush(stdout);

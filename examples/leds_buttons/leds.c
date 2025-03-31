@@ -36,6 +36,9 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <fcntl.h>
+#include <mqueue.h>
+
 #include <nuttx/leds/userled.h>
 
 #include "myapp_main.h"
@@ -78,12 +81,23 @@ int led_daemon(int argc, char *argv[])
 {
   userled_set_t supported;
   userled_set_t ledset;
+  userled_set_t ledsetSample;
   bool incrementing;
   int ret;
   int fd;
   pid_t mypid;
   struct sigaction act;
 
+     mqd_t mq;
+    int button_state;
+
+    /* Open existing message queue */
+  mq = mq_open(MQ_NAME, O_RDONLY);
+  if (mq == (mqd_t)-1)
+  {
+      perror("mq_open failed in led_daemon");
+      return NULL;
+  }
   /* SIGTERM handler */
 
   memset(&act, 0, sizeof(struct sigaction));
@@ -192,14 +206,26 @@ int led_daemon(int argc, char *argv[])
 
       ledset = newset;
       printf("led_daemon: LED set 0x%02x\n", (unsigned int)ledset);
-
-      ret = ioctl(fd, ULEDIOC_SETALL, ledset);
-      if (ret < 0)
+      if (mq_receive(mq, (char *)&button_state, MQ_MSG_SIZE, NULL) > 0)
         {
-          int errcode = errno;
-          printf("led_daemon: ERROR: ioctl(ULEDIOC_SUPPORTED) failed: %d\n",
-                 errcode);
-          goto errout_with_fd;
+          printf("Received button state: %d\n", button_state);
+          if (button_state == 1 )
+            {
+             ledsetSample++;
+            }
+          if (ledsetSample >= 0x7 )
+            {
+              ledsetSample = 0;
+            }
+          ret = ioctl(fd, ULEDIOC_SETALL, ledsetSample);
+          if (ret < 0)
+            {
+              int errcode = errno;
+              printf("led_daemon: ERROR: ioctl(ULEDIOC_SUPPORTED) failed: %d\n",
+                    errcode);
+              goto errout_with_fd;
+            }
+            //control_led(button_state); // Implement this function to toggle LED
         }
 
       usleep(500 * 1000L);
