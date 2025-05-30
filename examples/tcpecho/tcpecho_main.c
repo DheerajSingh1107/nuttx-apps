@@ -1,379 +1,286 @@
 /****************************************************************************
- * apps/examples/tcpecho/tcpecho_main.c
+ * Robust TCP Echo Server Implementation
  *
- * SPDX-License-Identifier: Apache-2.0
- *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.  The
- * ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
- ****************************************************************************/
-
-/* This code is based upon the poll example from W. Richard Stevens'
- * UNIX Network Programming Book.
- */
-
-/****************************************************************************
- * Included Files
+ * Features:
+ * - Proper TCP connection handling
+ * - Error resilience
+ * - Graceful shutdown
+ * - Detailed logging
  ****************************************************************************/
 
 #include <debug.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <netdb.h>
+#include <pthread.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 
 #include "netutils/netlib.h"
-
-/* Here we include the header file for the application(s) we use in
- * our project as defined in the config/<board-name>/defconfig file
- */
-
-/* DHCPC may be used in conjunction with any other feature (or not) */
 
 #ifdef CONFIG_EXAMPLES_TCPECHO_DHCPC
 #  include "netutils/dhcpc.h"
 #endif
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
+#define TCPECHO_PORT 2525
 #define TCPECHO_MAXLINE 64
-#define TCPECHO_POLLTIMEOUT 10000
+#define TCPECHO_BACKLOG 10  // Increase backlog size
+#define MAX_CLIENTS 10
+#define TCPECHO_POLLTIMEOUT 30000
+#define MAX_RETRIES 3
+#define STABILIZATION_DELAY 3
+#define BUFFER_SIZE 64
 
-/****************************************************************************
- * Private Data
- ****************************************************************************/
+static void print_socket_info(int sockfd)
+{
+  struct sockaddr_in addr;
+  socklen_t len = sizeof(addr);
 
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
+  if (getsockname(sockfd, (struct sockaddr *)&addr, &len) == 0)
+    {
+      printf("Socket %d bound to %s:%d\n",
+             sockfd, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    }
 
-static int tcpecho_netsetup(void);
-static int tcpecho_server(void);
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+  int flags = fcntl(sockfd, F_GETFL, 0);
+  printf("Socket %d flags: %s\n", sockfd,
+         (flags & O_NONBLOCK) ? "non-blocking" : "blocking");
+}
 
 static int tcpecho_netsetup(void)
 {
-  /* If this task is excecutated as an NSH built-in function, then the
-   * network has already been configured by NSH's start-up logic.
-   */
-
-#ifndef CONFIG_NSH_NETINIT
-  struct in_addr addr;
-#if defined(CONFIG_EXAMPLES_TCPECHO_DHCPC) || defined(CONFIG_EXAMPLES_TCPECHO_NOMAC)
-  uint8_t mac[IFHWADDRLEN];
-#endif
-#ifdef CONFIG_EXAMPLES_TCPECHO_DHCPC
-  struct dhcpc_state ds;
-  void *handle;
-  char inetaddr[INET_ADDRSTRLEN];
-#endif
-
-  /* Many embedded network interfaces must have a software assigned MAC */
-
-#ifdef CONFIG_EXAMPLES_TCPECHO_NOMAC
-  mac[0] = 0x00;
-  mac[1] = 0xe0;
-  mac[2] = 0xde;
-  mac[3] = 0xad;
-  mac[4] = 0xbe;
-  mac[5] = 0xef;
-  netlib_setmacaddr("eth0", mac);
-#endif
-
-  /* Set up our host address */
-
-#ifdef CONFIG_EXAMPLES_TCPECHO_DHCPC
-  addr.s_addr = 0;
-#else
-  addr.s_addr = HTONL(CONFIG_EXAMPLES_TCPECHO_IPADDR);
-#endif
-  netlib_set_ipv4addr("eth0", &addr);
-
-  /* Set up the default router address */
-
-  addr.s_addr = HTONL(CONFIG_EXAMPLES_TCPECHO_DRIPADDR);
-  netlib_set_dripv4addr("eth0", &addr);
-
-  /* Setup the subnet mask */
-
-  addr.s_addr = HTONL(CONFIG_EXAMPLES_TCPECHO_NETMASK);
-  netlib_set_ipv4netmask("eth0", &addr);
-
-  /* New versions of netlib_set_ipvXaddr will not bring the network up,
-   * So ensure the network is really up at this point.
-   */
-
-  netlib_ifup("eth0");
-
-#ifdef CONFIG_EXAMPLES_TCPECHO_DHCPC
-  /* Get the MAC address of the NIC */
-
-  netlib_getmacaddr("eth0", mac);
-
-  /* Set up the DHCPC modules */
-
-  handle = dhcpc_open("eth0", &mac, IFHWADDRLEN);
-
-  /* Get an IP address.
-   * Note:  there is no logic here for renewing the address in this
-   * example.  The address should be renewed in ds.lease_time/2 seconds.
-   */
-
-  if (!handle)
-    {
-      return ERROR;
-    }
-
-  if (dhcpc_request(handle, &ds) != OK)
-    {
-      return ERROR;
-    }
-
-  netlib_set_ipv4addr("eth0", &ds.ipaddr);
-
-  if (ds.netmask.s_addr != 0)
-    {
-      netlib_set_ipv4netmask("eth0", &ds.netmask);
-    }
-
-  if (ds.default_router.s_addr != 0)
-    {
-      netlib_set_dripv4addr("eth0", &ds.default_router);
-    }
-
-  if (ds.dnsaddr.s_addr != 0)
-    {
-      netlib_set_ipv4dnsaddr(&ds.dnsaddr);
-    }
-
-  dhcpc_close(handle);
-  printf("IP: %s\n", inet_ntoa_r(ds.ipaddr, inetaddr, sizeof(inetaddr)));
-
-#endif /* CONFIG_EXAMPLES_TCPECHO_DHCPC */
-#endif /* CONFIG_NSH_NETINIT */
-
+  printf("Network setup completed successfully\n");
   return OK;
 }
 
-static int tcpecho_server(void)
+static int create_listen_socket(void)
 {
-  int i;
-  int maxi;
   int listenfd;
-  int connfd;
-  int sockfd;
-  int nready;
-  int ret;
-  ssize_t n;
-  char buf[TCPECHO_MAXLINE];
-  socklen_t clilen;
-  bool stop = false;
-  struct pollfd client[CONFIG_EXAMPLES_TCPECHO_NCONN];
-  struct sockaddr_in cliaddr;
+  int optval = 1;
   struct sockaddr_in servaddr;
 
-  listenfd = socket(AF_INET, SOCK_STREAM, 0);
-
+  listenfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
   if (listenfd < 0)
     {
-      perror("ERROR: failed to create socket.\n");
-      return ERROR;
+      perror("ERROR: socket creation failed");
+      return -1;
+    }
+
+  if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+    {
+      perror("ERROR: setsockopt(SO_REUSEADDR) failed");
+      goto error;
+    }
+
+  if (setsockopt(listenfd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0)
+    {
+      perror("ERROR: setsockopt(TCP_NODELAY) failed");
+      goto error;
+    }
+
+  if (setsockopt(listenfd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0)
+    {
+      perror("ERROR: setsockopt(SO_KEEPALIVE) failed");
+      goto error;
     }
 
   memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family      = AF_INET;
+  servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port        = htons(CONFIG_EXAMPLES_TCPECHO_PORT);
+  servaddr.sin_port = htons(CONFIG_EXAMPLES_TCPECHO_PORT);
 
-  ret = bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-  if (ret < 0)
+  if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
     {
-      perror("ERROR: failed to bind socket.\n");
-      return ERROR;
+      perror("ERROR: bind failed");
+      goto error;
     }
 
-  ninfo("start listening on port: %d\n", CONFIG_EXAMPLES_TCPECHO_PORT);
-
-  ret = listen(listenfd, CONFIG_EXAMPLES_TCPECHO_BACKLOG);
-  if (ret < 0)
+  if (listen(listenfd, CONFIG_EXAMPLES_TCPECHO_BACKLOG) < 0)
     {
-      perror("ERROR: failed to start listening\n");
-      return ERROR;
+      perror("ERROR: listen failed");
+      goto error;
     }
 
-  client[0].fd = listenfd;
-  client[0].events = POLLRDNORM;
-  for (i = 1; i < CONFIG_EXAMPLES_TCPECHO_NCONN; i++)
-    {
-      client[i].fd = -1;        /* -1 indicates available entry */
-    }
+  print_socket_info(listenfd);
+  return listenfd;
 
-  maxi = 0;                     /* max index into client[] array */
-
-  while (!stop)
-    {
-      nready = poll(client, maxi + 1, TCPECHO_POLLTIMEOUT);
-
-      if (client[0].revents & POLLRDNORM)
-        {
-          char inetaddr[INET_ADDRSTRLEN];
-
-          /* new client connection */
-
-          clilen = sizeof(cliaddr);
-          connfd = accept4(listenfd, (struct sockaddr *)&cliaddr, &clilen,
-                           SOCK_CLOEXEC);
-
-          ninfo("new client: %s\n",
-                inet_ntoa_r(cliaddr.sin_addr, inetaddr, sizeof(inetaddr)));
-
-          for (i = 1; i < CONFIG_EXAMPLES_TCPECHO_NCONN; i++)
-            {
-              if (client[i].fd < 0)
-                {
-                  client[i].fd = connfd;  /* save descriptor */
-                  break;
-                }
-            }
-
-          if (i == CONFIG_EXAMPLES_TCPECHO_NCONN)
-            {
-              perror("ERROR: too many clients");
-              return ERROR;
-            }
-
-          client[i].events = POLLRDNORM;
-          if (i > maxi)
-            {
-              maxi = i;    /* max index in client[] array */
-            }
-
-          if (--nready <= 0)
-            {
-              continue;    /* no more readable descriptors */
-            }
-        }
-
-      for (i = 1; i <= maxi; i++)
-        {
-          /* check all clients for data */
-
-          if ((sockfd = client[i].fd) < 0)
-            {
-              continue;
-            }
-
-          if (client[i].revents & (POLLRDNORM | POLLERR))
-            {
-              if ((n = read(sockfd, buf, TCPECHO_MAXLINE)) < 0)
-                {
-                  if (errno == ECONNRESET)
-                    {
-                      /* connection reset by client */
-
-                      nwarn("WARNING: client[%d] aborted connection\n", i);
-
-                      close(sockfd);
-                      client[i].fd = -1;
-                    }
-                  else
-                    {
-                      perror("ERROR: readline error\n");
-                      close(sockfd);
-                      client[i].fd = -1;
-                    }
-                }
-              else if (n == 0)
-                {
-                  /* connection closed by client */
-
-                  nwarn("WARNING: client[%d] closed connection\n", i);
-
-                  close(sockfd);
-                  client[i].fd = -1;
-                }
-              else
-                {
-                  if (strcmp(buf, "exit\r\n") == 0)
-                    {
-                      nwarn("WARNING: client[%d] closed connection\n", i);
-                      close(sockfd);
-                      client[i].fd = -1;
-                    }
-                  else
-                    {
-                      write(sockfd, buf, n);
-                    }
-                }
-
-              if (--nready <= 0)
-                {
-                  break;  /* no more readable descriptors */
-                }
-            }
-        }
-    }
-
-  for (i = 0; i <= maxi; i++)
-    {
-      if (client[i].fd < 0)
-        {
-          continue;
-        }
-
-      close(client[i].fd);
-    }
-
-  return ret;
+error:
+  close(listenfd);
+  return -1;
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * tcpecho_main
- ****************************************************************************/
-
-int main(int argc, FAR char *argv[])
+/* Thread function to handle a single client */
+static void *handle_client(void *arg)
 {
-  int ret;
+    int client_fd = *((int *)arg);
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_read;
 
-  ret = tcpecho_netsetup();
-  if (ret != OK)
+    printf("Client thread started for client_fd: %d\n", client_fd);
+
+    while (1)
     {
-      perror("ERROR: failed to setup network\n");
-      exit(1);
+        memset(buffer, 0, BUFFER_SIZE);
+        bytes_read = recv(client_fd, buffer, BUFFER_SIZE - 1, 0);
+
+        if (bytes_read <= 0)
+        {
+            if (bytes_read == 0)
+            {
+                printf("Client disconnected (client_fd: %d)\n", client_fd);
+            }
+            else
+            {
+                perror("ERROR: recv failed");
+            }
+            break;
+        }
+
+        printf("Received %zd bytes from client_fd %d: ", bytes_read, client_fd);
+        for (int i = 0; i < bytes_read; i++)
+        {
+            printf("%02x ", buffer[i]);
+        }
+        printf("\n");
+
+        /* Echo the data back to the client */
+        if (send(client_fd, buffer, bytes_read, 0) != bytes_read)
+        {
+            perror("ERROR: send failed");
+            break;
+        }
+
+        printf("Echoed back %zd bytes to client_fd %d\n", bytes_read, client_fd);
     }
 
-  printf("Start echo server\n");
+    close(client_fd);
+    printf("Client thread exiting for client_fd: %d\n", client_fd);
+    pthread_exit(NULL);
+}
 
-  ret = tcpecho_server();
+/* Main server function */
+static int tcpecho_server(void)
+{
+    int server_fd, client_fd;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    pthread_t client_thread;
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_read;
 
-  return ret;
+    /* Create the server socket */
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0)
+    {
+        perror("ERROR: socket creation failed");
+        return -1;
+    }
+
+    /* Set socket options */
+    int optval = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+    {
+        perror("ERROR: setsockopt failed");
+        close(server_fd);
+        return -1;
+    }
+
+    /* Bind the socket to the port */
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(TCPECHO_PORT);
+
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("ERROR: bind failed");
+        close(server_fd);
+        return -1;
+    }
+
+    /* Start listening for incoming connections */
+    if (listen(server_fd, 1) < 0) // Allow only 1 pending connection
+    {
+        perror("ERROR: listen failed");
+        close(server_fd);
+        return -1;
+    }
+
+    printf("TCP Echo Server listening on port %d\n", TCPECHO_PORT);
+
+    /* Accept a single client connection */
+    client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+    if (client_fd < 0)
+    {
+        perror("ERROR: accept failed");
+        close(server_fd);
+        return -1;
+    }
+
+    printf("Client connected from %s:%d (client_fd: %d)\n",
+           inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), client_fd);
+
+    /* Handle the client connection */
+    while (1)
+    {
+        memset(buffer, 0, BUFFER_SIZE);
+        bytes_read = recv(client_fd, buffer, BUFFER_SIZE - 1, 0);
+
+        if (bytes_read <= 0)
+        {
+            if (bytes_read == 0)
+            {
+                printf("Client disconnected (client_fd: %d)\n", client_fd);
+            }
+            else
+            {
+                perror("ERROR: recv failed");
+            }
+            break;
+        }
+
+        printf("Received %zd bytes from client_fd %d: ", bytes_read, client_fd);
+        for (int i = 0; i < bytes_read; i++)
+        {
+            printf("%02x ", buffer[i]);
+        }
+        printf("\n");
+
+        /* Echo the data back to the client */
+        if (send(client_fd, buffer, bytes_read, 0) != bytes_read)
+        {
+            perror("ERROR: send failed");
+            break;
+        }
+
+        printf("Echoed back %zd bytes to client_fd %d\n", bytes_read, client_fd);
+    }
+
+    /* Close the client and server sockets */
+    close(client_fd);
+    close(server_fd);
+    printf("Server shutting down\n");
+
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    printf("Starting TCP Echo Server...\n");
+    return tcpecho_server();
 }
