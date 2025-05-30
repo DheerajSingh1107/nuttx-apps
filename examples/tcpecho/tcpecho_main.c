@@ -44,7 +44,7 @@
 #define TCPECHO_POLLTIMEOUT 30000
 #define MAX_RETRIES 3
 #define STABILIZATION_DELAY 3
-#define BUFFER_SIZE 64
+#define BUFFER_SIZE 512
 
 static void print_socket_info(int sockfd)
 {
@@ -254,12 +254,12 @@ static int tcpecho_server(void)
             break;
         }
 
-        printf("Received %zd bytes from client_fd %d: ", bytes_read, client_fd);
-        for (int i = 0; i < bytes_read; i++)
-        {
-            printf("%02x ", buffer[i]);
-        }
-        printf("\n");
+       // printf("Received %zd bytes from client_fd %d: ", bytes_read, client_fd);
+        // for (int i = 0; i < bytes_read; i++)
+        // {
+        //     printf("%02x ", buffer[i]);
+        // }
+        // printf("\n");
 
         /* Echo the data back to the client */
         if (send(client_fd, buffer, bytes_read, 0) != bytes_read)
@@ -268,7 +268,7 @@ static int tcpecho_server(void)
             break;
         }
 
-        printf("Echoed back %zd bytes to client_fd %d\n", bytes_read, client_fd);
+      //  printf("Echoed back %zd bytes to client_fd %d\n", bytes_read, client_fd);
     }
 
     /* Close the client and server sockets */
