@@ -193,7 +193,7 @@ static int tcpecho_server(void)
 
     /* Set socket options */
     int optval = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+    if (setsockopt(server_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0)
     {
         perror("ERROR: setsockopt failed");
         close(server_fd);
