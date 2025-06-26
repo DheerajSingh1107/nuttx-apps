@@ -286,9 +286,9 @@ int main(int argc, FAR char *argv[])
       return EXIT_FAILURE;
     }
 
-  printf("nmsgs: %ld\n", nmsgs);
+  ////printf("nmsgs: %ld\n", nmsgs);
 #ifdef CONFIG_EXAMPLES_CAN_WRITE
-  printf("min ID: %ld max ID: %ld\n", minid, maxid);
+  //printf("min ID: %ld max ID: %ld\n", minid, maxid);
 #endif
 
   /* Initialization of the CAN hardware is performed by board-specific,
@@ -300,8 +300,8 @@ int main(int argc, FAR char *argv[])
   fd = open(CONFIG_EXAMPLES_CAN_DEVPATH, CAN_OFLAGS);
   if (fd < 0)
     {
-      printf("ERROR: open %s failed: %d\n",
-             CONFIG_EXAMPLES_CAN_DEVPATH, errno);
+      //printf("ERROR: open %s failed: %d\n",
+      //       CONFIG_EXAMPLES_CAN_DEVPATH, errno);
       errval = 2;
       goto errout_with_dev;
     }
@@ -374,13 +374,13 @@ int main(int argc, FAR char *argv[])
       nbytes = write(fd, &txmsg, msgsize);
       if (nbytes != msgsize)
         {
-          printf("ERROR: write(%ld) returned %ld\n",
-                 (long)msgsize, (long)nbytes);
+          //printf("ERROR: write(%ld) returned %ld\n",
+//                 (long)msgsize, (long)nbytes);
           errval = 3;
           goto errout_with_dev;
         }
 
-      printf("  ID: %4" PRI_CAN_ID " DLC: %d\n", msgid, msgdlc);
+      //printf("  ID: %4" PRI_CAN_ID " DLC: %d\n", msgid, msgdlc);
 #endif
 
 #ifdef CONFIG_EXAMPLES_CAN_READ
@@ -391,14 +391,14 @@ int main(int argc, FAR char *argv[])
       nbytes = read(fd, &rxmsg, msgsize);
       if (nbytes < CAN_MSGLEN(0) || nbytes > msgsize)
         {
-          printf("ERROR: read(%ld) returned %ld\n",
-                 (long)msgsize, (long)nbytes);
+          //printf("ERROR: read(%ld) returned %ld\n",
+//                 (long)msgsize, (long)nbytes);
           errval = 4;
           goto errout_with_dev;
         }
 
-      printf("  ID: %4" PRI_CAN_ID " DLC: %u\n",
-             rxmsg.cm_hdr.ch_id, rxmsg.cm_hdr.ch_dlc);
+      //printf("  ID: %4" PRI_CAN_ID " DLC: %u\n",
+        //     rxmsg.cm_hdr.ch_id, rxmsg.cm_hdr.ch_dlc);
 
       msgbytes = can_dlc2bytes(rxmsg.cm_hdr.ch_dlc);
 
@@ -407,52 +407,52 @@ int main(int argc, FAR char *argv[])
 
       if (rxmsg.cm_hdr.ch_error != 0)
         {
-          printf("ERROR: CAN error report: [0x%04" PRI_CAN_ID "]\n",
+          //printf("ERROR: CAN error report: [0x%04" PRI_CAN_ID "]\n",
                  rxmsg.cm_hdr.ch_id);
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_TXTIMEOUT) != 0)
             {
-              printf("  TX timeout\n");
+              //printf("  TX timeout\n");
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_LOSTARB) != 0)
             {
-              printf("  Lost arbitration: %02x\n", rxmsg.cm_data[0]);
+              //printf("  Lost arbitration: %02x\n", rxmsg.cm_data[0]);
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_CONTROLLER) != 0)
             {
-              printf("  Controller error: %02x\n", rxmsg.cm_data[1]);
+              //printf("  Controller error: %02x\n", rxmsg.cm_data[1]);
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_PROTOCOL) != 0)
             {
-              printf("  Protocol error: %02x %02x\n", rxmsg.cm_data[2],
+              //printf("  Protocol error: %02x %02x\n", rxmsg.cm_data[2],
                      rxmsg.cm_data[3]);
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_TRANSCEIVER) != 0)
             {
-              printf("  Transceiver error: %02x\n", rxmsg.cm_data[4]);
+              //printf("  Transceiver error: %02x\n", rxmsg.cm_data[4]);
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_NOACK) != 0)
             {
-              printf("  No ACK received on transmission\n");
+              //printf("  No ACK received on transmission\n");
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_BUSOFF) != 0)
             {
-              printf("  Bus off\n");
+              //printf("  Bus off\n");
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_BUSERROR) != 0)
             {
-              printf("  Bus error\n");
+              //printf("  Bus error\n");
             }
 
           if ((rxmsg.cm_hdr.ch_id & CAN_ERROR_RESTARTED) != 0)
             {
-              printf("  Controller restarted\n");
+              //printf("  Controller restarted\n");
             }
         }
       else
@@ -465,7 +465,7 @@ int main(int argc, FAR char *argv[])
           if (memcmp(&txmsg.cm_hdr, &rxmsg.cm_hdr,
                      sizeof(struct can_hdr_s)) != 0)
             {
-              printf("ERROR: Sent header does not match received header:\n");
+              //printf("ERROR: Sent header does not match received header:\n");
               lib_dumpbuffer("Sent header",
                              (FAR const uint8_t *)&txmsg.cm_hdr,
                              sizeof(struct can_hdr_s));
@@ -478,10 +478,10 @@ int main(int argc, FAR char *argv[])
 
           if (memcmp(txmsg.cm_data, rxmsg.cm_data, msgbytes) != 0)
             {
-              printf("ERROR: Data does not match. DLC=%d\n", msgdlc);
+              //printf("ERROR: Data does not match. DLC=%d\n", msgdlc);
               for (i = 0; i < msgbytes; i++)
                 {
-                  printf("  %d: TX 0x%02x RX 0x%02x\n",
+                  //printf("  %d: TX 0x%02x RX 0x%02x\n",
                          i, txmsg.cm_data[i], rxmsg.cm_data[i]);
                   errval = 5;
                   goto errout_with_dev;
@@ -490,16 +490,16 @@ int main(int argc, FAR char *argv[])
 
           /* Report success */
 
-          printf("  ID: %4" PRI_CAN_ID " DLC: %d -- OK\n", msgid, msgdlc);
+          //printf("  ID: %4" PRI_CAN_ID " DLC: %d -- OK\n", msgid, msgdlc);
 
 #else
 
           /* Print the data received */
 
-          printf("Data received:\n");
+          //printf("Data received:\n");
           for (i = 0; i < msgbytes; i++)
             {
-              printf("  %d: 0x%02x\n", i, rxmsg.cm_data[i]);
+              //printf("  %d: 0x%02x\n", i, rxmsg.cm_data[i]);
             }
 #endif
         }
@@ -520,14 +520,14 @@ int main(int argc, FAR char *argv[])
       //   {
       //     msgbytes = 1;
       //   }
-      usleep(100 * 1); /* Sleep for 1ms */
+     // usleep(100 * 1); /* Sleep for 1ms */
 #endif
     }
 
 errout_with_dev:
   close(fd);
 
-  printf("Terminating!\n");
+  //printf("Terminating!\n");
   fflush(stdout);
   return errval;
 }
