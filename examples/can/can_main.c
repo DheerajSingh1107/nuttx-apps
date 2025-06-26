@@ -95,6 +95,8 @@
  * Private Data
  ****************************************************************************/
 
+ uint8_t run[8] = {0x00, 0x00, 0xcc, 0x7f, 0xff, 0x87, 0x17, 0xff};
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -327,8 +329,8 @@ int main(int argc, FAR char *argv[])
    */
 
 #ifdef CONFIG_EXAMPLES_CAN_WRITE
-  msgbytes = 1;
-  msgid    = minid;
+  msgbytes = 8;
+  msgid    = 0x1;
   msgdata  = 0;
 #endif
 
@@ -363,7 +365,7 @@ int main(int argc, FAR char *argv[])
 
       for (i = 0; i < msgbytes; i++)
         {
-          txmsg.cm_data[i] = msgdata + i;
+          txmsg.cm_data[i] = run[i];
         }
 
       /* Send the TX message */
@@ -507,17 +509,18 @@ int main(int argc, FAR char *argv[])
 
       /* Set up for the next pass */
 
-      msgdata += msgbytes;
+      // msgdata += msgbytes;
 
-      if (++msgid > maxid)
-        {
-          msgid = minid;
-        }
+      // if (++msgid > maxid)
+      //   {
+      //     msgid = minid;
+      //   }
 
-      if (++msgbytes > CAN_MAXDATALEN)
-        {
-          msgbytes = 1;
-        }
+      // if (++msgbytes > CAN_MAXDATALEN)
+      //   {
+      //     msgbytes = 1;
+      //   }
+      usleep(100 * 1); /* Sleep for 1ms */
 #endif
     }
 
