@@ -193,12 +193,12 @@ static int tcpecho_server(void)
 
     /* Set socket options */
     int optval = 1;
-    if (setsockopt(server_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0)
-    {
-        perror("ERROR: setsockopt failed");
-        close(server_fd);
-        return -1;
-    }
+    // if (setsockopt(server_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0)
+    // {
+    //     perror("ERROR: setsockopt failed");
+    //     close(server_fd);
+    //     return -1;
+    // }
 
     /* Bind the socket to the port */
     memset(&server_addr, 0, sizeof(server_addr));

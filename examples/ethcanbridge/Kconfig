@@ -1,0 +1,78 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config EXAMPLES_ETHCANBRIDGE
+    tristate "ETH-CAN Bridge example"
+    default n
+#    depends on NET && CAN
+    ---help---
+        Enable the ETH-CAN Bridge example
+
+
+if EXAMPLES_ETHCANBRIDGE
+config EXAMPLES_ETHCANBRIDGE_PORT
+    int "Server Port"
+    default 2525
+    ---help---
+        The port number on which the server listens for incoming connections
+config EXAMPLES_ETHCANBRIDGE_BACKLOG
+    int "Listen Backlog"
+    default 8
+    depends on EXAMPLES_ETHCANBRIDGE
+
+config EXAMPLES_ETHCANBRIDGE_NCONN
+    int "Number of Connections"
+    default 1
+    depends on EXAMPLES_ETHCANBRIDGE
+
+config EXAMPLES_ETHCANBRIDGE_IPADDR
+    hex "Target IP address"
+    default 0xc0a80101
+    depends on EXAMPLES_ETHCANBRIDGE && !NSH_NETINIT && !EXAMPLES_ETHCANBRIDGE_DHCPC
+    ---help---
+        The target IP address for the server to connect to
+config EXAMPLES_ETHCANBRIDGE_DRIPADDR
+    hex "Default Router IP address (Gateway)"
+    default 0xc0a80131
+    depends on EXAMPLES_ETHCANBRIDGE && !NSH_NETINIT
+    ---help---
+        The default router IP address (Gateway) for the server
+config EXAMPLES_ETHCANBRIDGE_NETMASK
+    hex "Network Mask"
+    default 0xffffff00
+    depends on EXAMPLES_ETHCANBRIDGE && !NSH_NETINIT
+    ---help---
+        The network mask for the server's network configuration
+config EXAMPLES_ETHCANBRIDGE_DEVPATH
+    string "Device Path"
+    default "/dev/can0"
+    ---help---
+        The device path for the CAN interface
+config EXAMPLES_ETHCANBRIDGE_NMSGS
+    int "Number of Messages"
+    default 0
+    ---help---
+        The number of CAN messages to send before returning
+choice
+    prompt "Read-only, write-only or read-write"
+    default EXAMPLES_ETHCANBRIDGE_READWRITE
+    ---help---
+        Choose to only read, only write, or read and write CAN messages
+config EXAMPLES_ETHCANBRIDGE_READ
+    bool "Read-only"
+    ---help---
+        Only read CAN messages
+config EXAMPLES_ETHCANBRIDGE_WRITE
+    bool "Write-only"
+    ---help---
+        Only write CAN messages
+config EXAMPLES_ETHCANBRIDGE_READWRITE
+    bool "Read-write"
+    ---help---
+        Read and write CAN messages
+endchoice
+
+endif
+# end of ETH-CAN Bridge example configuration
