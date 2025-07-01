@@ -374,8 +374,8 @@ int main(int argc, FAR char *argv[])
       nbytes = write(fd, &txmsg, msgsize);
       if (nbytes != msgsize)
         {
-          //printf("ERROR: write(%ld) returned %ld\n",
-//                 (long)msgsize, (long)nbytes);
+          printf("ERROR: write(%ld) returned %ld\n",
+                 (long)msgsize, (long)nbytes);
           errval = 3;
           goto errout_with_dev;
         }
@@ -391,14 +391,14 @@ int main(int argc, FAR char *argv[])
       nbytes = read(fd, &rxmsg, msgsize);
       if (nbytes < CAN_MSGLEN(0) || nbytes > msgsize)
         {
-          //printf("ERROR: read(%ld) returned %ld\n",
-//                 (long)msgsize, (long)nbytes);
+          printf("ERROR: read(%ld) returned %ld\n",
+                (long)msgsize, (long)nbytes);
           errval = 4;
           goto errout_with_dev;
         }
 
-      //printf("  ID: %4" PRI_CAN_ID " DLC: %u\n",
-        //     rxmsg.cm_hdr.ch_id, rxmsg.cm_hdr.ch_dlc);
+      printf("  ID: %4" PRI_CAN_ID " DLC: %u\n",
+            rxmsg.cm_hdr.ch_id, rxmsg.cm_hdr.ch_dlc);
 
       msgbytes = can_dlc2bytes(rxmsg.cm_hdr.ch_dlc);
 
@@ -465,7 +465,7 @@ int main(int argc, FAR char *argv[])
           if (memcmp(&txmsg.cm_hdr, &rxmsg.cm_hdr,
                      sizeof(struct can_hdr_s)) != 0)
             {
-              //printf("ERROR: Sent header does not match received header:\n");
+              printf("ERROR: Sent header does not match received header:\n");
               lib_dumpbuffer("Sent header",
                              (FAR const uint8_t *)&txmsg.cm_hdr,
                              sizeof(struct can_hdr_s));
@@ -478,11 +478,11 @@ int main(int argc, FAR char *argv[])
 
           if (memcmp(txmsg.cm_data, rxmsg.cm_data, msgbytes) != 0)
             {
-              //printf("ERROR: Data does not match. DLC=%d\n", msgdlc);
+              printf("ERROR: Data does not match. DLC=%d\n", msgdlc);
               for (i = 0; i < msgbytes; i++)
                 {
-                  //printf("  %d: TX 0x%02x RX 0x%02x\n",
-                         i, txmsg.cm_data[i], rxmsg.cm_data[i]);
+                printf("  %d: TX 0x%02x RX 0x%02x\n",
+                        i, txmsg.cm_data[i], rxmsg.cm_data[i]);
                   errval = 5;
                   goto errout_with_dev;
                 }
@@ -490,7 +490,7 @@ int main(int argc, FAR char *argv[])
 
           /* Report success */
 
-          //printf("  ID: %4" PRI_CAN_ID " DLC: %d -- OK\n", msgid, msgdlc);
+          printf("  ID: %4" PRI_CAN_ID " DLC: %d -- OK\n", msgid, msgdlc);
 
 #else
 

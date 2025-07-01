@@ -6,7 +6,7 @@
 config EXAMPLES_ETHCANBRIDGE
     tristate "ETH-CAN Bridge example"
     default n
-#    depends on NET && CAN
+    depends on NET && CAN
     ---help---
         Enable the ETH-CAN Bridge example
 
@@ -29,13 +29,13 @@ config EXAMPLES_ETHCANBRIDGE_NCONN
 
 config EXAMPLES_ETHCANBRIDGE_IPADDR
     hex "Target IP address"
-    default 0xc0a80101
+    default 0xc0a80131
     depends on EXAMPLES_ETHCANBRIDGE && !NSH_NETINIT && !EXAMPLES_ETHCANBRIDGE_DHCPC
     ---help---
         The target IP address for the server to connect to
 config EXAMPLES_ETHCANBRIDGE_DRIPADDR
     hex "Default Router IP address (Gateway)"
-    default 0xc0a80131
+    default 0xc0a80101
     depends on EXAMPLES_ETHCANBRIDGE && !NSH_NETINIT
     ---help---
         The default router IP address (Gateway) for the server

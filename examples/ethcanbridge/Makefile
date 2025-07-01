@@ -24,9 +24,14 @@ include $(APPDIR)/Make.defs
 
 # ethcanbriege libraries
 
-CSRCS += ethcanbridge_main.c
-CSRCS += eth_iface.c
-CSRCS += can_iface.c
-CSRCS += bridge.c
+
+MAINSRC = ethcanbridge_main.c
+CSRCS   = eth_iface.c can_iface.c bridge.c
+
+# ethcanbriege built-in application info
+PROGNAME = ethcanbridge
+PRIORITY = SCHED_PRIORITY_DEFAULT
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
+MODULE = $(CONFIG_EXAMPLES_ETHCANBRIDGE)
 
 include $(APPDIR)/Application.mk
