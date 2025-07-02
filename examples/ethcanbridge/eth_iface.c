@@ -13,7 +13,7 @@ static int client_fd = -1;
 
 static void *eth_server_thread(void *arg)
 {
-    int server_fd, client_fd;
+    int server_fd;
     struct sockaddr_in addr = {0};
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
