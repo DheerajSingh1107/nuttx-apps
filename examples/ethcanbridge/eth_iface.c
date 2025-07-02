@@ -11,6 +11,9 @@
 
 static int client_fd = -1;
 
+uint8_t sample[8] = {0x00, 0x00, 0xcc, 0x7f, 0xff, 0x87, 0x17, 0xff};
+int length = sizeof(sample);
+
 static void *eth_server_thread(void *arg)
 {
     int server_fd;
@@ -42,8 +45,10 @@ static void *eth_server_thread(void *arg)
                 break;
               }
           }
+      bridge_forward_from_eth(sample, length); // Forward sample data
+      usleep(100 * 1000); // Sleep for 100ms
     }
-
+    printf("[ETH] Client disconnected.\n");
     close(client_fd);
     close(server_fd);
     return NULL;
@@ -57,6 +62,11 @@ void eth_server_start(void)
 
 void eth_send(const uint8_t *data, size_t len)
 {
-    if (client_fd >= 0)
-        write(client_fd, data, len);
+    // if (client_fd >= 0)
+    //     write(client_fd, data, len);
+    for (int i = 0; i < len; i++)
+    {
+        printf("eth_send: %02x ", data[i]);
+    }
+    printf("\n");
 }

@@ -6,6 +6,7 @@
 void bridge_init(void)
 {
     // Init any shared buffers or semaphores here
+    can_init(); // Initialize CAN interface
 }
 
 void bridge_forward_from_eth(const uint8_t *data, size_t len)
