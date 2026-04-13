@@ -8,7 +8,7 @@
  * - Detailed logging
  ****************************************************************************/
 
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -44,7 +44,11 @@
 #define TCPECHO_POLLTIMEOUT 30000
 #define MAX_RETRIES 3
 #define STABILIZATION_DELAY 3
+<<<<<<< HEAD
 #define BUFFER_SIZE 512
+=======
+#define BUFFER_SIZE 64
+>>>>>>> eb853c7d6 (tcp/ip server at 50hz)
 
 static void print_socket_info(int sockfd)
 {
@@ -193,12 +197,21 @@ static int tcpecho_server(void)
 
     /* Set socket options */
     int optval = 1;
+<<<<<<< HEAD
     // if (setsockopt(server_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0)
     // {
     //     perror("ERROR: setsockopt failed");
     //     close(server_fd);
     //     return -1;
     // }
+=======
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+    {
+        perror("ERROR: setsockopt failed");
+        close(server_fd);
+        return -1;
+    }
+>>>>>>> eb853c7d6 (tcp/ip server at 50hz)
 
     /* Bind the socket to the port */
     memset(&server_addr, 0, sizeof(server_addr));
@@ -254,12 +267,21 @@ static int tcpecho_server(void)
             break;
         }
 
+<<<<<<< HEAD
        // printf("Received %zd bytes from client_fd %d: ", bytes_read, client_fd);
         // for (int i = 0; i < bytes_read; i++)
         // {
         //     printf("%02x ", buffer[i]);
         // }
         // printf("\n");
+=======
+        printf("Received %zd bytes from client_fd %d: ", bytes_read, client_fd);
+        for (int i = 0; i < bytes_read; i++)
+        {
+            printf("%02x ", buffer[i]);
+        }
+        printf("\n");
+>>>>>>> eb853c7d6 (tcp/ip server at 50hz)
 
         /* Echo the data back to the client */
         if (send(client_fd, buffer, bytes_read, 0) != bytes_read)
@@ -268,7 +290,11 @@ static int tcpecho_server(void)
             break;
         }
 
+<<<<<<< HEAD
       //  printf("Echoed back %zd bytes to client_fd %d\n", bytes_read, client_fd);
+=======
+        printf("Echoed back %zd bytes to client_fd %d\n", bytes_read, client_fd);
+>>>>>>> eb853c7d6 (tcp/ip server at 50hz)
     }
 
     /* Close the client and server sockets */
